@@ -2,7 +2,7 @@
 // (settings keys, photos — see scope.ts). The first account is the administrator, and
 // takes over everything that existed before accounts (one-household installs).
 import { randomBytes, randomInt, scryptSync, timingSafeEqual } from "node:crypto";
-import { type Db, getDevice, normalizeMac, unbindDevice, deleteRawSettings } from "../db.js";
+import { type Db, getDevice, normalizeMac, asMac, unbindDevice, deleteRawSettings } from "../db.js";
 import { isUserKey } from "../scope.js";
 
 export interface User { id: number; name: string; admin: boolean; created_at: string }
@@ -117,6 +117,30 @@ export function claimDevice(db: Db, code: string, userId: number): string | unde
   const d = db.prepare("SELECT mac FROM device WHERE owner_id IS NULL AND pair_code = ?").get(code.trim()) as { mac: string } | undefined;
   if (!d) return undefined;
   db.prepare("UPDATE device SET owner_id = ?, pair_code = NULL, settings = NULL, state = NULL WHERE mac = ?").run(userId, d.mac);
+  deleteRawSettings(db, `d:${d.mac}:`);
+  return d.mac;
+}
+
+/**
+ * Binds a device by MAC directly (no pairing code shown on screen needed).
+ * - already yours: success (idempotent, keeps settings);
+ * - exists but unowned: takes it over (clears pairing state like claimDevice);
+ * - never seen: pre-registers it to you, so its first connection lands on your account;
+ * - owned by someone else: refused (returns undefined).
+ */
+export function claimDeviceByMac(db: Db, macRaw: string, userId: number): string | undefined {
+  const mac = asMac(macRaw);
+  if (!mac) return undefined;
+  const d = getDevice(db, mac);
+  if (!d) {
+    db.prepare("INSERT INTO device (mac, key, status, created_at, owner_id) VALUES (?, ?, 'active', ?, ?)")
+      .run(mac, randomBytes(16).toString("hex"), new Date().toISOString(), userId);
+    return mac;
+  }
+  if (d.owner_id === userId) return d.mac;
+  if (d.owner_id !== null && d.owner_id !== undefined) return undefined;
+  db.prepare("UPDATE device SET owner_id = ?, pair_code = NULL, settings = NULL, state = NULL, status = 'active' WHERE mac = ?")
+    .run(userId, d.mac);
   deleteRawSettings(db, `d:${d.mac}:`);
   return d.mac;
 }

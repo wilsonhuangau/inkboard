@@ -248,5 +248,14 @@ export function deleteRawSettings(db: Db, prefix: string): void {
 }
 
 export function normalizeMac(mac: string): string {
-  return mac.trim().toUpperCase();
+  let s = mac.trim().toUpperCase().replace(/-/g, ":").replace(/\s+/g, "");
+  // 12 hex chars without separators -> insert colons (AABBCC112233 -> AA:BB:CC:11:22:33)
+  if (/^[0-9A-F]{12}$/.test(s)) s = s.replace(/([0-9A-F]{2})(?=[0-9A-F])/g, "$1:").replace(/:$/, "");
+  return s;
+}
+
+/** Canonical "AA:BB:CC:DD:EE:FF" form, or undefined when the input is not a MAC. */
+export function asMac(mac: string): string | undefined {
+  const s = normalizeMac(mac);
+  return /^([0-9A-F]{2}:){5}[0-9A-F]{2}$/.test(s) ? s : undefined;
 }

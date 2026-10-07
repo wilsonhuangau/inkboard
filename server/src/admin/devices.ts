@@ -134,6 +134,9 @@ export function deviceRoutes(app: Hono, db: Db, now: () => Date): void {
           <p class="muted small" style="margin-top:-6px">新的墨水屏连上服务器后会显示 6 位配对码，在这里输入即可绑定到你的账号；绑定后只有你能看到和设置它。</p>
           <form method="post" action="/admin/pair" class="row"><input type="text" name="code" inputmode="numeric" pattern="[0-9 ]{4,10}" placeholder="配对码" required style="width:150px;letter-spacing:3px">
             <button class="primary">绑定</button></form>
+          <p class="muted small" style="margin:12px 0 6px">知道 MAC 地址也可以直接绑定（还没连上服务器的屏会预先登记，它上线后自动归到你名下）。</p>
+          <form method="post" action="/admin/pair" class="row"><input type="text" name="mac" placeholder="AA:BB:CC:DD:EE:FF" required style="width:190px" autocapitalize="characters" spellcheck="false">
+            <button>按 MAC 绑定</button></form>
           <details><summary>屏幕还没联网？</summary><p class="small muted">按 RESET 后马上按住 BOOT 直到 LED 常亮，手机连接热点 <b>InkBoard-XXXX</b>（旧固件为 InkSight-XXXX），打开 192.168.4.1，选择 WiFi 并填写服务器地址 <code>http://${c.req.header("host") ?? "本机IP:8080"}</code>。</p></details>
         </section></div>`,
     }));

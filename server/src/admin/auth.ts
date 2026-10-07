@@ -8,7 +8,7 @@ import type { Db } from "../db.js";
 import { runAs } from "../scope.js";
 import {
   type User, userCount, createUser, verifyUser, createSession, sessionUser, endSession, listUsers,
-  deleteUser, setPassword, claimDevice, SESSION_DAYS_MAX_AGE,
+  deleteUser, setPassword, claimDevice, claimDeviceByMac, SESSION_DAYS_MAX_AGE,
 } from "../data/users.js";
 import { CSS } from "./layout.js";
 
@@ -89,10 +89,18 @@ export function authRoutes(app: Hono, db: Db): void {
     return c.redirect("/login");
   });
 
-  // ── pairing a device to this account ──
+  // ── pairing a device to this account: by the 6-digit code on its screen,
+  // or directly by MAC (for firmware that binds by MAC / pre-registering a screen).
   app.post("/admin/pair", async (c) => {
-    const code = String((await c.req.parseBody()).code ?? "").replace(/\s/g, "");
-    const mac = /^\d{4,8}$/.test(code) ? claimDevice(db, code, userOf(c).id) : undefined;
+    const b = await c.req.parseBody();
+    const userId = userOf(c).id;
+    const byMac = String(b.mac ?? "").trim();
+    if (byMac) {
+      const mac = claimDeviceByMac(db, byMac, userId);
+      return c.redirect(mac ? `/devices/${mac}?flash=${encodeURIComponent("绑定成功，给它起个名字吧")}` : `/?flash=${encodeURIComponent("MAC 地址不对，或这块屏已被别人绑定")}#pair`);
+    }
+    const code = String(b.code ?? "").replace(/\s/g, "");
+    const mac = /^\d{4,8}$/.test(code) ? claimDevice(db, code, userId) : undefined;
     return c.redirect(mac ? `/devices/${mac}?flash=${encodeURIComponent("绑定成功，给它起个名字吧")}` : `/?flash=${encodeURIComponent("配对码不对，或这块屏已经被绑定")}#pair`);
   });
 
