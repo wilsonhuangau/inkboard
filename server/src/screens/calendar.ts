@@ -4,6 +4,7 @@
 //  - solar terms use exact dates (the reference approximates the 2nd term as 1st + 15 days)
 //  - holidays come from all bundled holiday-cn years, not only the configured one
 //  - no Wi-Fi name (the server does not know it); battery shown when the device reports it
+import { isLarge } from "./common.js";
 import { Canvas } from "../render/canvas.js";
 import { fillCircle, drawCircle, fillRoundRect, dottedLine } from "../render/gfx.js";
 import { type RefFont, refFonts, height, width, inkBounds, print, centeredX, centeredAt, drawBattery } from "../render/reftext.js";
@@ -43,7 +44,12 @@ export function renderCalendar(panel: Panel, ctx: ScreenContext, opts: CalendarO
 
   const W = panel.width;
   const H = panel.height;
-  const large = H >= 400; // reference: large_layout = height >= 400
+  const large = isLarge(panel); // reference: large_layout = height >= 400 (the short side, so upright too)
+  // An upright 4.2" has ~41 px columns: 休 / 班 go to the top of their circle (above the
+  // date, where they cannot run into the cell before), and the rest of the cell moves down
+  // a little to make room. The large panels upright are laid out as landscape.
+  // Same for the firmware's copy.
+  const tall = H > W && !large;
   const weekStart = opts.weekStart ?? 0;
   const c = new Canvas(W, H);
   const check = (what: string, rf: RefFont, s: string, x: number, baseline: number, cx: number, cy?: number,
@@ -148,7 +154,8 @@ export function renderCalendar(panel: Panel, ctx: ScreenContext, opts: CalendarO
       let cr = large ? 15 : 11;
       if (rows > 5) cr -= 1;
       const bx = x + Math.floor((bw - 2 * cr) / 2) + displayWeek * bw;
-      const by = y + Math.floor((bh - 2 * cr) / 2) + Math.floor((i + adjustedFirstDay) / 7) * bh + 3;
+      const cellTop = y + Math.floor((i + adjustedFirstDay) / 7) * bh;
+      const by = cellTop + Math.floor((bh - 2 * cr) / 2) + 3 + (tall ? 5 : 0);
 
       // Date and lunar label: vertical positions as in the reference (rows stay aligned),
       // horizontally centred on the column by ink (the reference's width maths and its +1 px
@@ -234,25 +241,38 @@ export function renderCalendar(panel: Panel, ctx: ScreenContext, opts: CalendarO
       if (hol) {
         const text = hol === "work" ? "班" : "休";
         const holInk = hol === "work" ? Ink.Black : Ink.Red;
-        if (isToday) {
-          const rr = large ? 10 : 8;
-          // Reference x, pushed left if the badge would cover the date.
-          const rx = Math.min(bx - (large ? 10 : 5), dayInk.x0 - 2 - rr);
-          const ry = by - 2;
-          fillCircle(c, rx, ry, rr, Ink.White);
-          drawCircle(c, rx, ry, rr, Ink.Red);
-          const p = centeredAt(wqy9, text, rx, ry);
-          print(c, wqy9, text, p.x, p.baseline, holInk);
-          check(`badge ${text}`, wqy9, text, p.x, p.baseline, rx, ry,
-                { color: holInk, circle: { cx: rx, cy: ry, r: rr - 1 } });
-          badges.push({ cx: rx, cy: ry, r: rr + 1 });
-          opts.boxes?.push({ day, what: `badge ${text}`, ink: { x0: rx - rr, x1: rx + rr, y0: ry - rr, y1: ry + rr } });
-        } else {
-          // Reference position, pushed left if it would touch the date.
-          const ink = inkBounds(wqy9, text, 0, 0)!;
-          const hx = Math.min(bx - (large ? 20 : 11), dayInk.x0 - 2 - ink.x1);
-          print(c, wqy9, text, hx, by + 3, holInk);
-          box(day, text, wqy9, text, hx, by + 3);
+        // the 4.2": as small as the stem/branch characters
+        const hf = large ? wqy9 : wqy6;
+        {
+          // On the circle round the date + lunar label (today's red disc) that runs through the
+          // top stem/branch badge: that badge mirrored to the left, moved up along the circle
+          // until it clears a two-digit date. Today a badge like the stem/branch ones, other
+          // days the character alone, in the same place.
+          const a = dayInk, b = inkBounds(lunarFont, label, labelX, labelBaseline);
+          const dcx = Math.round((Math.min(a.x0, b?.x0 ?? a.x0) + Math.max(a.x1, b?.x1 ?? a.x1)) / 2);
+          const dcy = Math.round((a.y0 + (b?.y1 ?? a.y1)) / 2);
+          const rr = large ? 9 : 7;
+          const gx = Math.max(taxX + (large ? 36 : 27) - offset - 1, dayInk.x1 + 2 + rr);
+          const labelTop = b?.y0 ?? Infinity;
+          const gy = Math.min(by - 2 - 8 - 3, labelTop - 2 - rr - (2 * rr + 1));
+          const R = Math.hypot(gx - dcx, gy - dcy);
+          // the mirror image; in the narrow upright 4.2" cells the top of the circle, which
+          // stays inside the cell
+          let t = tall ? -Math.PI / 2 : Math.atan2(gy - dcy, gx - dcx);
+          const at = (u: number) => [Math.round(dcx - R * Math.cos(u)), Math.round(dcy + R * Math.sin(u))];
+          const clear = ([px, py]: number[]) => px + rr + 1 < dayInk.x0 || py + rr + 1 < dayInk.y0;
+          while (!clear(at(t)) && t > -Math.PI / 2) t -= Math.PI / 90;
+          const [rx, ry] = at(t);
+          if (isToday) {
+            fillCircle(c, rx, ry, rr, Ink.White);
+            drawCircle(c, rx, ry, rr, Ink.Red);
+            badges.push({ cx: rx, cy: ry, r: rr + 1 });
+            opts.boxes?.push({ day, what: `badge ${text}`, ink: { x0: rx - rr, x1: rx + rr, y0: ry - rr, y1: ry + rr } });
+          }
+          const p = centeredAt(hf, text, rx, ry);
+          print(c, hf, text, p.x, p.baseline, holInk);
+          if (isToday) check(`badge ${text}`, hf, text, p.x, p.baseline, rx, ry, { color: holInk, circle: { cx: rx, cy: ry, r: rr - 1 } });
+          else box(day, text, hf, text, p.x, p.baseline);
         }
       }
     }

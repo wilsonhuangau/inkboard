@@ -59,11 +59,23 @@
 | 行情 | <img src="pic/market-398.png" width="384"> | <img src="pic/market-42.png" width="200"> |
 | 资讯 | <img src="pic/news-398.png" width="384"> | <img src="pic/news-42.png" width="200"> |
 
+### 竖着放
+
+每个布局都有竖版。在后台"设备"里把屏幕方向改成纵向，再把屏逆时针转 90° 竖起来就行；断网时的离线日历也跟着变成竖版。下面是 3.98 寸竖放（552×768）的样子：
+
+| | | | |
+|---|---|---|---|
+| <img src="pic/portrait/calendar-398.png" width="180"><br>日历 | <img src="pic/portrait/datecard-398.png" width="180"><br>日期牌 | <img src="pic/portrait/weather-398.png" width="180"><br>天气 | <img src="pic/portrait/photo-398.png" width="180"><br>相框 |
+| <img src="pic/portrait/yearprogress-398.png" width="180"><br>年度进度 | <img src="pic/portrait/countdown-398.png" width="180"><br>倒数日 | <img src="pic/portrait/messages-398.png" width="180"><br>留言板 | <img src="pic/portrait/todo-398.png" width="180"><br>待办作业 |
+| <img src="pic/portrait/poetry-398.png" width="180"><br>古诗词 | <img src="pic/portrait/words-398.png" width="180"><br>外语单词 | <img src="pic/portrait/almanac-398.png" width="180"><br>月相黄历 | <img src="pic/portrait/agenda-398.png" width="180"><br>日程 |
+| <img src="pic/portrait/timetable-398.png" width="180"><br>课程表 | <img src="pic/portrait/dashboard-398.png" width="180"><br>看板 | <img src="pic/portrait/hitokoto-398.png" width="180"><br>一言 | <img src="pic/portrait/market-398.png" width="180"><br>行情 |
+| <img src="pic/portrait/news-398.png" width="180"><br>资讯 |  |  |  |
+
 ## 屏幕
 
-我手上实测过的是 3.98 寸 SE0398NZ07（A0 版，黑白黄红）和 4.2 寸 HINK SSD1683（黑白红）。3.98 寸的 A1 版也写好了驱动，但还没有实物测过。
+实测过的有 3.98 寸 SE0398NZ07（A0 和 A1 两个版本，黑白黄红）、4.2 寸 HINK SSD1683（黑白红）、5.83 寸 UC8179（648×480，黑白红，用的是 WROOM-32E 板子）和 4.2 寸 UC8176（黑白红）。
 
-上游 InkSight 支持的其它屏也都能用，包括 4.2 寸黑白黄红、5.83 寸和 7.5 寸三色，以及各种 4.2、5.83、7.5 寸黑白屏，不过都没在真机上验证。2.9 寸太小，现有的版面排不下，没有适配。每块屏对应的编译环境见 [firmware/README.md](firmware/README.md#支持的屏幕)。
+上游 InkSight 支持的其它屏也都能用，包括 4.2 寸黑白黄红、7.5 寸三色，以及各种 4.2、5.83、7.5 寸黑白屏，不过除了上面说的 5.83 寸三色，都没在真机上验证。另外加了 UC8159 等几种屏：5.65 寸七色、7.3 寸七色和六色（Spectra 6）、7.5 寸 V1（640×384）和 5.83 寸 V1（600×448）的三色和黑白，以及从 EPD-nRF5 移植的 4.2 寸 UC8176 三色（这块已实测）、7.5 寸和 5.83 寸 JD79665 四色、7.5 寸 HD（880×528）三色和黑白，9.7 寸三色价签屏，还有 GxEPD2 库里 3.97 寸到 13.3 寸的十来种黑白屏；彩色屏先显示黑白黄红四种颜色。除了 UC8176，这些都没有实物测过。2.9 寸太小，现有的版面排不下，没有适配。每块屏对应的编译环境见 [firmware/README.md](firmware/README.md#支持的屏幕)。
 
 ## 快速开始
 

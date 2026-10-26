@@ -25,18 +25,32 @@ static const Panel PANELS[] = {
     {"bw42", 400, 300, {0, 1, 0, 0}, 1},
     {"bw583", 648, 480, {0, 1, 0, 0}, 1},
     {"bw75", 800, 480, {0, 1, 0, 0}, 1},
+    {"color565", 600, 448, {0, 1, 2, 3}, 2},
+    {"bwr75v1", 640, 384, {0, 1, 3, 3}, 2},
+    {"bwry75", 800, 480, {0, 1, 2, 3}, 2},
+    {"bw75v1", 640, 384, {0, 1, 0, 0}, 1},
+    {"bwr583v1", 600, 448, {0, 1, 3, 3}, 2},
+    {"bw583v1", 600, 448, {0, 1, 0, 0}, 1},
+    {"bwry583", 648, 480, {0, 1, 2, 3}, 2},
+    {"bwr75hd", 880, 528, {0, 1, 3, 3}, 2},
+    {"bw75hd", 880, 528, {0, 1, 0, 0}, 1},
+    {"bwr97", 960, 672, {0, 1, 3, 3}, 2},
+    {"bw576", 920, 680, {0, 1, 0, 0}, 1},
+    {"bw102", 960, 640, {0, 1, 0, 0}, 1},
+    {"bw133", 960, 680, {0, 1, 0, 0}, 1},
 };
 static const int BAND = 24;
 
-static unsigned char full[800 * 552 / 4], banded[800 * 552 / 4], band[800 * BAND / 4];
+static unsigned char full[960 * 680 / 4], banded[960 * 680 / 4], band[960 * BAND / 4];
+static int rot = 0;  // 0 landscape, 1 portrait, 2 landscape-flip, 3 portrait-flip (CalTarget::rot)
 
 // Draws the frame whole and in bands; returns its size, or 0 if the two differ.
 static size_t draw(const Panel &p, int y, int m, int d, float v) {
     size_t row = (size_t)p.w * p.bpp / 8, n = row * p.h;
-    CalTarget t = {p.w, p.h, {p.codes[0], p.codes[1], p.codes[2], p.codes[3]}, full, 0, 0, p.bpp};
+    CalTarget t = {p.w, p.h, {p.codes[0], p.codes[1], p.codes[2], p.codes[3]}, full, 0, 0, p.bpp, rot};
     calendarRender(t, y, m, d, v);
     for (int y0 = 0; y0 < p.h; y0 += BAND) {
-        CalTarget b = {p.w, p.h, {p.codes[0], p.codes[1], p.codes[2], p.codes[3]}, band, y0, BAND, p.bpp};
+        CalTarget b = {p.w, p.h, {p.codes[0], p.codes[1], p.codes[2], p.codes[3]}, band, y0, BAND, p.bpp, rot};
         calendarRender(b, y, m, d, v);
         int rows = p.h - y0 < BAND ? p.h - y0 : BAND;
         memcpy(banded + row * y0, band, row * rows);
@@ -58,7 +72,12 @@ int main(int argc, char **argv) {
         return 0;
     }
     int from = argc > 2 ? atoi(argv[1]) : 2025, to = argc > 2 ? atoi(argv[2]) : 2030;
-    int panels = argc > 3 && !strcmp(argv[3], "all") ? 8 : 2;
+    int panels = argc > 3 && !strcmp(argv[3], "all") ? (int)(sizeof PANELS / sizeof PANELS[0]) : 2;
+    // a fourth argument: the orientation, as expected.ts takes it
+    if (argc > 4) {
+        static const char *O[] = {"landscape", "portrait", "landscape-flip", "portrait-flip"};
+        for (int k = 0; k < 4; k++) if (!strcmp(argv[4], O[k])) rot = k;
+    }
     static const int D[] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
     for (int y = from; y <= to; y++)
         for (int m = 1; m <= 12; m++) {

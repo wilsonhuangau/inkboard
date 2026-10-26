@@ -17,6 +17,10 @@ import { sleepSeconds } from "../schedule.js";
 import { batteryLevel } from "../data/calendar.js";
 import { panelOf, canvasFor } from "../deviceFrame.js";
 import { previewPng } from "../render/pack.js";
+import { ORIENTATIONS, isPortrait, screenLabel } from "../panels.js";
+
+/** Upright screens: a narrower preview frame. */
+const tall = (s: DeviceSettings) => (isPortrait(s.orientation) ? " tall" : "");
 import { page, ago, hm, icon } from "./layout.js";
 import { userOf } from "./auth.js";
 import { DEV_ONLY, modeName, opts, deviceName, macTail, screenChecks, formList, modeForm, safeBack, withFlash } from "./common.js";
@@ -113,7 +117,7 @@ export function deviceRoutes(app: Hono, db: Db, now: () => Date): void {
         <div class="spread" style="align-items:flex-start"><div><h2 style="margin:0">${deviceName(db, d, s)}</h2>
           <code class="mac" title="MAC 地址">${d.mac}</code></div>${status(d, s, t)}</div>
         <p class="muted small" style="margin:8px 0 12px">正在播放：${current}</p>
-        ${panel ? html`<a href="/devices/${d.mac}" class="screen" style="display:block"><img class="preview" loading="lazy" src="/preview/device/${d.mac}.png" alt="当前画面"></a>` : ""}
+        ${panel ? html`<a href="/devices/${d.mac}" class="screen${tall(s)}" style="display:block"><img class="preview" loading="lazy" src="/preview/device/${d.mac}.png" alt="当前画面"></a>` : ""}
         <div class="stats"><div class="stat"><small>电量</small><b>${battery(d.battery_v)}</b></div>
           <div class="stat"><small>信号</small><b>${signal(d.rssi)}</b></div>
           <div class="stat"><small>下次刷新</small><b>${nw ? hm(nw) : "—"}</b></div></div>
@@ -160,7 +164,7 @@ export function deviceRoutes(app: Hono, db: Db, now: () => Date): void {
     return c.html(page(c, {
       title: name, nav: "home",
       body: html`<p class="small" style="margin:0 0 6px"><a href="/" class="muted" style="text-decoration:none">← 概览</a></p>
-      <div class="head"><div><h1>${name}</h1><p class="sub"><code class="mac">${d.mac}</code> · ${panel?.name ?? "未知屏幕"} · 上次刷新 ${ago(d.last_seen, t)}${nw ? html`，下次约 ${hm(nw)}` : ""}</p></div>${status(d, s, t)}</div>
+      <div class="head"><div><h1>${name}</h1><p class="sub"><code class="mac">${d.mac}</code> · ${d.width ? screenLabel(d) : "未知屏幕"} · 上次刷新 ${ago(d.last_seen, t)}${nw ? html`，下次约 ${hm(nw)}` : ""}</p></div>${status(d, s, t)}</div>
       ${tabs}${body.html}`,
       script: body.script,
     }));
@@ -193,7 +197,8 @@ export function deviceRoutes(app: Hono, db: Db, now: () => Date): void {
     if (!d) return c.notFound();
     const b = await c.req.parseBody();
     const cur = getSettings(db, d);
-    saveSettings(db, d.mac, sanitizeSettings({ name: String(b.name ?? ""), font: String(b.font ?? "") as DeviceSettings["font"], live: b.live !== undefined, pin: cur.pin }, cur));
+    saveSettings(db, d.mac, sanitizeSettings({ name: String(b.name ?? ""), font: String(b.font ?? "") as DeviceSettings["font"], live: b.live !== undefined,
+      orientation: String(b.orientation ?? "") as DeviceSettings["orientation"], pin: cur.pin }, cur));
     return c.redirect(withFlash(`/devices/${d.mac}?tab=device`, "已保存"));
   });
 
@@ -257,7 +262,7 @@ function playTab(db: Db, d: Device, s: DeviceSettings, hasPanel: boolean): Tab {
   return {
     html: html`<div class="cols">
       <section class="card"><h2>现在显示</h2>
-        ${hasPanel ? html`<div class="screen"><img class="preview" src="/preview/device/${d.mac}.png" alt="当前画面"></div>` : html`<p class="muted">设备还没报告屏幕型号。</p>`}
+        ${hasPanel ? html`<div class="screen${tall(s)}"><img class="preview" src="/preview/device/${d.mac}.png" alt="当前画面"></div>` : html`<p class="muted">设备还没报告屏幕型号。</p>`}
         ${s.pin ? html`<div class="flash spread" style="margin:14px 0 0"><span>临时显示：<b>${pinText}</b></span>
           <form method="post" action="/admin/devices/${d.mac}/unpin"><button>恢复播放列表</button></form></div>` : ""}
         <form method="post" action="/admin/devices/${d.mac}/pin" class="row" style="margin-top:14px">
@@ -322,7 +327,9 @@ async function contentTab(db: Db, d: Device, s: DeviceSettings, now: Date, cityQ
     const sc = SCREENS[m];
     const group = syncGroup(db, d.mac, m);
     const synced = group.slice(1);
-    const pill = !hasContent(m) ? "" : synced.length ? html`<span class="pill acc">与 ${names(db, synced)} 同步</span>` : several ? html`<span class="pill">仅本屏</span>` : "";
+    // 日程 / 待办 shown only because the 看板 uses them: say so (they are not in the playlist)
+    const forDash = !shown.includes(m) ? html`<span class="pill">看板用到，不在播放列表中</span>` : "";
+    const pill = forDash ? forDash : !hasContent(m) ? "" : synced.length ? html`<span class="pill acc">与 ${names(db, synced)} 同步</span>` : several ? html`<span class="pill">仅本屏</span>` : "";
     const editor = contentEditor(db, d, m, now, back(m), { cityQuery, found, searchError });
     const sync = hasContent(m) && several ? html`<details style="margin-top:14px"><summary>多屏同步${synced.length ? `（${synced.length} 块）` : ""}</summary>
       <form method="post" action="/admin/devices/${d.mac}/sync/${m}" style="margin-top:10px">
@@ -332,7 +339,7 @@ async function contentTab(db: Db, d: Device, s: DeviceSettings, now: Date, cityQ
     return html`<section class="card" id="c-${m}">
       <div class="spread"><h2 style="margin:0">${sc.name}</h2>${pill}</div>
       <div class="cols" style="margin-top:14px">
-        ${panel ? html`<div><div class="screen"><img class="preview" loading="lazy" src="/preview/${panel.id}.png?screen=${m}&dev=${d.mac}" alt="${sc.name} 预览"></div></div>` : ""}
+        ${panel ? html`<div><div class="screen${tall(s)}"><img class="preview" loading="lazy" src="/preview/${panel.id}.png?screen=${m}&dev=${d.mac}" alt="${sc.name} 预览"></div></div>` : ""}
         <div>${editor}</div></div>${sync}</section>`;
   }));
   return {
@@ -371,7 +378,7 @@ function contentEditor(db: Db, d: Device, m: string, now: Date, back: string, ci
           <input type="hidden" name="dev" value="${d.mac}"><input type="hidden" name="back" value="${back}"><input type="hidden" name="place" value="${JSON.stringify(x)}">
           <button>${label(x)}</button></form>`)
         : html`<p class="muted small">${city.searchError ? `搜索失败：${city.searchError}` : "没有找到，换个写法试试（如去掉“市”）。"}</p>`}</div>` : ""}
-      <p class="muted small">天气来自 Open-Meteo，30 分钟更新一次。${m === "weather" ? "" : "日期牌、天气和家庭看板共用这块屏的城市。"}</p>
+      <p class="muted small">天气来自 Open-Meteo，30 分钟更新一次。${m === "weather" ? "" : "日期牌、天气和看板共用这块屏的城市。"}</p>
       ${m === "dashboard" ? html`<p class="muted small" style="margin-bottom:0">看板右侧的留言、日程和待办，就是这块屏的<a href="/messages">留言</a>、<a href="#c-agenda">日程</a>和<a href="#c-todo">待办作业</a>内容（日程和待办在下方卡片里设置）。</p>` : ""}`;
   }
   const form = modeForm(db, m, now, { dev: d.mac, back });
@@ -415,6 +422,8 @@ function deviceTab(db: Db, d: Device, s: DeviceSettings, now: Date): Tab {
       <form method="post" action="/admin/devices/${d.mac}/display" class="card"><h2>名称与显示</h2>
         <label class="field"><span>名称</span><input type="text" name="name" value="${s.name}" placeholder="例如 客厅、书房" maxlength="24">
           <small>不填时显示为"${deviceName(db, d, { ...s, name: "" })}"。</small></label>
+        <label class="field"><span>屏幕方向</span><select name="orientation">${opts(s.orientation, ORIENTATIONS)}</select>
+          <small>屏幕怎么摆放。纵向是把横放的屏逆时针转 90° 竖起来；画面会按这个方向正着显示。还没做竖版的布局，竖放时先显示一条提示。断网时的离线日历暂时还是横版。</small></label>
         <label class="field"><span>大字字体</span><select name="font">${opts(s.font, fontOpts)}</select>
           <small>留言、诗词、倒数日等页面的大号中文。</small></label>
         <label class="check"><input type="checkbox" name="live" ${s.live ? raw("checked") : ""}> 实时模式（常亮不休眠，适合插 USB 电源时）</label>
@@ -423,7 +432,7 @@ function deviceTab(db: Db, d: Device, s: DeviceSettings, now: Date): Tab {
         <section class="card"><h2>电量与连接</h2>${batteryChart(telemetry(db, d.mac, new Date(now.getTime() - 7 * 86_400_000).toISOString()), now)}
           <dl class="kv" style="margin-top:8px"><dt>电量</dt><dd>${battery(d.battery_v)}${d.battery_v ? ` · ${d.battery_v.toFixed(2)} V` : ""}</dd>
           <dt>信号</dt><dd>${signal(d.rssi)}${d.rssi ? ` · ${d.rssi} dBm` : ""}</dd><dt>MAC 地址</dt><dd><code>${d.mac}</code>（${macTail(d.mac)}）</dd>
-          <dt>屏幕</dt><dd>${panel?.name ?? "—"}</dd><dt>请求次数</dt><dd>${d.requests}</dd><dt>上次启动</dt><dd class="small">${d.boot ?? "—"}</dd></dl></section>
+          <dt>屏幕</dt><dd>${d.width ? screenLabel(d) : "—"}</dd><dt>请求次数</dt><dd>${d.requests}</dd><dt>上次启动</dt><dd class="small">${d.boot ?? "—"}</dd></dl></section>
         <section class="card"><h2>解绑</h2><p class="muted small" style="margin-top:-6px">解绑后这块屏会显示新的配对码，可以重新绑定到任何账号；它的播放设置和内容会清除。</p>
           <form method="post" action="/admin/devices/${d.mac}/delete" onsubmit="return confirm('解绑这块屏？')"><button>解绑设备</button></form></section>
       </div></div>`,

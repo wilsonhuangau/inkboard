@@ -5,7 +5,7 @@ import { type Db, type Device, listDevices } from "../db.js";
 import { SCREENS } from "../frames.js";
 import { getModeConfig } from "../data/modeConfig.js";
 import { getSettings } from "../data/devices.js";
-import { panelOf } from "../deviceFrame.js";
+import { diagonalOf } from "../panels.js";
 
 /** Developer screens, hidden unless asked for. */
 export const DEV_ONLY = new Set(["test", "fontcompare", "bigfont"]);
@@ -14,7 +14,9 @@ export const modeName = (id: string) => SCREENS[id]?.name ?? id;
 export const opts = (sel: string, list: [string, string][]) =>
   list.map(([v, l]) => html`<option value="${v}" ${v === sel ? raw("selected") : ""}>${l}</option>`);
 
-const panelSize = (d: Device) => panelOf(d)?.name.match(/^[\d.]+/)?.[0];
+// its diagonal as the firmware reports it, else the usual one of its resolution -- never the
+// panel's name (a B/W panel the server does not know is called "600×448")
+const panelSize = (d: Device) => diagonalOf(d);
 
 /** The device's name, or "3.98 寸屏" (numbered when the user has several unnamed ones of that size). */
 export function deviceName(db: Db, d: Device, s = getSettings(db, d)): string {
@@ -58,7 +60,9 @@ export function modeForm(db: Db, id: string, now: Date, o: { dev: string; back: 
       ${f.type === "textarea" ? html`<textarea name="${f.key}" rows="${Math.min(12, Math.max(4, cfg[f.key].split("\n").length + 1))}" placeholder="${f.placeholder ?? ""}">${cfg[f.key]}</textarea>`
         : f.type === "select" ? html`<select name="${f.key}">${opts(cfg[f.key], [...f.options!, ...(f.dynamicOptions?.(cfg, now) ?? [])])}</select>`
         : html`<input type="text" name="${f.key}" value="${cfg[f.key]}" placeholder="${f.placeholder ?? ""}" style="width:100%">`}
-      ${f.help ? html`<small>${f.help}</small>` : ""}</label>`)}
+      ${f.help ? html`<small>${f.help}</small>` : ""}
+      ${f.check && cfg[f.key].trim() ? html`<ul class="checks">${f.check(cfg[f.key], now, cfg).map((r) =>
+        html`<li class="${r.ok ? "ok" : "bad"}">${r.ok ? "✓" : "✗"} ${r.text}</li>`)}</ul>` : ""}</label>`)}
     <button class="primary">保存</button></form>`;
 }
 

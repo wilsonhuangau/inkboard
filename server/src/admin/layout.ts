@@ -112,6 +112,8 @@ export const CSS = `
   .pl-opts { display:flex; flex-wrap:wrap; gap:8px 16px; font-size:13px; color:var(--fg2) } .pl-opts label { display:inline-flex; align-items:center; gap:6px; white-space:nowrap }
   textarea { width:100%; font-family:ui-monospace,Consolas,"Microsoft YaHei",monospace; font-size:13px; line-height:1.5 }
   textarea.text { font-family:inherit; font-size:15px }
+  ul.checks { list-style:none; margin:6px 0 0; padding:0; font-size:13px; line-height:1.6 }
+  ul.checks li.ok { color:var(--ok) } ul.checks li.bad { color:var(--acc) }
   label.field { display:block; margin:12px 0 } label.field > span { display:block; font-size:13px; font-weight:500; color:var(--fg2); margin-bottom:5px }
   label.field input[type=text], label.field input[type=password] { width:100% }
   label.field small { display:block; color:var(--mute); font-size:12px; margin-top:4px }
@@ -120,6 +122,7 @@ export const CSS = `
   .preview { border-radius:10px; display:block; width:100%; height:auto; background:#dcd7cb; box-shadow:inset 0 0 0 1px #0000000f }
   .screen { padding:10px; border-radius:16px; background:linear-gradient(145deg,#3a3a3e,#1f1f22); box-shadow:0 6px 18px #00000026 }
   .screen .preview { border-radius:4px; box-shadow:none }
+  .screen.tall { max-width:340px; margin-left:auto; margin-right:auto }
   .kv { display:grid; grid-template-columns:auto 1fr; gap:6px 16px; font-size:14px; margin:0 } .kv dt { color:var(--mute) } .kv dd { margin:0 }
   .stats { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:14px }
   .stat { background:var(--soft); border-radius:10px; padding:8px 10px } .stat small { display:block; color:var(--mute); font-size:11px } .stat b { font-size:15px }

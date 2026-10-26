@@ -7,7 +7,7 @@ import { messagesFor, type Message } from "../data/messages.js";
 import { currentDevice } from "../scope.js";
 import type { ScreenContext } from "./testPattern.js";
 import type { Screen } from "./screen.js";
-import { screenWithHeader, wrapText, ellipsize, emptyNote, drawQuoteMark } from "./common.js";
+import { screenWithHeader, wrapText, ellipsize, emptyNote, drawQuoteMark, centeredBlockX } from "./common.js";
 
 function when(at: string, now: Date): string {
   const d = new Date(at);
@@ -49,8 +49,10 @@ export function renderMessages(panel: Panel, ctx: ScreenContext) {
   const lines = wrapText(font, main.text, textW, Math.max(1, Math.floor(area / lh)));
   const blockH = lines.length * lh;
   let y = f.top + (large ? 24 : 12) + Math.max(0, Math.round((area - blockH) / 2)) + font.ascent;
-  for (const l of lines) { print(c, font, l, textX, y, Ink.Black); y += lh; }
-  // signature, right-aligned under the text
+  const bx = centeredBlockX(lines.map((l) => width(font, l)), W, m, textX, y - font.ascent, f.top + (large ? 52 : 32));
+  for (const l of lines) { print(c, font, l, bx, y, Ink.Black); y += lh; }
+  // signature under the text, right-aligned to the screen's margin (as 一言's source) --
+  // not to the text block, which a short message makes narrow and centred
   const sig = `—— ${main.from || "家人"}  ${when(main.at, ctx.now)}`;
   const sf = large ? wqy12 : wqy9;
   print(c, sf, sig, W - m - width(sf, sig), Math.min(mainBottom - 4, y - lh + (large ? 34 : 22)), Ink.Black);
@@ -73,5 +75,6 @@ export const messagesMode: Screen = {
   name: "留言板",
   description: "给家人留言：最新一条用大字显示，之前的几条列在下面。",
   render: renderMessages,
+  portrait: true,
   prepare: async (db) => ({ data: messagesFor(db, currentDevice()) }), // to all screens, or to this one
 };

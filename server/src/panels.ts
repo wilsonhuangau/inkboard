@@ -104,7 +104,136 @@ export const PANELS: Record<string, Panel> = {
     cornerRadius: 0,
     measured: { ...MEASURED, yellow: MEASURED.red },
   },
+  // Panels of the UC8159, 7.3" colour, JD79665 and SSD1677 drivers (firmware/src/
+  // epd_driver_uc8159.cpp, _73_color.cpp, _jd79665.cpp, _ssd1677.cpp), not yet checked on hardware. The 7-colour and Spectra 6 panels show black, white, yellow and red of their
+  // colours; the firmware turns the 2bpp codes into the panel's own colour indices.
+  // 5.65" 7-colour ACeP (UC8159C).
+  color565: {
+    id: "color565",
+    name: '5.65" 7-colour (B/W/Y/R)',
+    width: 600,
+    height: 448,
+    colors: 4,
+    codes: [0b00, 0b01, 0b10, 0b11],
+    ppi: 133,
+    cornerRadius: 0,
+    measured: MEASURED,
+  },
+  // 7.5" V1 B/W/R 640x384 (UC8159): yellow shows red.
+  bwr75v1: {
+    id: "bwr75v1",
+    name: '7.5" V1 B/W/R',
+    width: 640,
+    height: 384,
+    colors: 3,
+    codes: [0b00, 0b01, 0b11, 0b11],
+    ppi: 100,
+    cornerRadius: 0,
+    measured: { ...MEASURED, yellow: MEASURED.red },
+  },
+  // 5.83" V1 B/W/R 600x448 (UC8159): yellow shows red. (The 5.83" V2, 648x480, is bwr583.)
+  bwr583v1: {
+    id: "bwr583v1",
+    name: '5.83" V1 B/W/R',
+    width: 600,
+    height: 448,
+    colors: 3,
+    codes: [0b00, 0b01, 0b11, 0b11],
+    ppi: 128,
+    cornerRadius: 0,
+    measured: { ...MEASURED, yellow: MEASURED.red },
+  },
+  // 800x480 B/W/Y/R: the 7.5" JD79665 (GDEM075F52), the 7.3" 7-colour ACeP and Spectra 6.
+  bwry75: {
+    id: "bwry75",
+    name: '7.5" / 7.3" B/W/Y/R',
+    width: 800,
+    height: 480,
+    colors: 4,
+    codes: [0b00, 0b01, 0b10, 0b11],
+    ppi: 126,
+    cornerRadius: 0,
+    measured: MEASURED,
+  },
+  // 5.83" B/W/Y/R 648x480 (JD79665).
+  bwry583: {
+    id: "bwry583",
+    name: '5.83" B/W/Y/R',
+    width: 648,
+    height: 480,
+    colors: 4,
+    codes: [0b00, 0b01, 0b10, 0b11],
+    ppi: 138,
+    cornerRadius: 0,
+    measured: MEASURED,
+  },
+  // 7.5" HD B/W/R 880x528 (SSD1677): yellow shows red.
+  bwr75hd: {
+    id: "bwr75hd",
+    name: '7.5" HD B/W/R',
+    width: 880,
+    height: 528,
+    colors: 3,
+    codes: [0b00, 0b01, 0b11, 0b11],
+    ppi: 137,
+    cornerRadius: 0,
+    measured: { ...MEASURED, yellow: MEASURED.red },
+  },
+  // 9.7" B/W/R 960x672 (Solum price tag, SSD family): yellow shows red.
+  bwr97: {
+    id: "bwr97",
+    name: '9.7" B/W/R',
+    width: 960,
+    height: 672,
+    colors: 3,
+    codes: [0b00, 0b01, 0b11, 0b11],
+    ppi: 121,
+    cornerRadius: 0,
+    measured: { ...MEASURED, yellow: MEASURED.red },
+  },
 };
+
+/**
+ * The usual diagonal (inches) of a panel of this resolution, for devices that do not say
+ * (older firmware, upstream InkSight): the commonest panel of each size. Ours report it.
+ */
+const DIAGONALS: Record<string, string> = {
+  "296x128": "2.9", "400x300": "4.2", "600x448": "5.83", "640x384": "7.5", "648x480": "5.83",
+  "768x552": "3.98", "800x480": "7.5", "880x528": "7.5", "920x680": "5.76", "960x640": "10.2",
+  "960x672": "9.7", "960x680": "13.3",
+};
+
+/** A device's diagonal: as it reports it, else the usual one of its resolution. */
+export function diagonalOf(d: { inch?: string | null; width?: number | null; height?: number | null }): string | undefined {
+  return d.inch || (d.width && d.height ? DIAGONALS[`${d.width}x${d.height}`] : undefined);
+}
+
+/** '5.83" 黑白红 · 600×448': size, inks and resolution (no size if unknown). */
+export function screenLabel(d: { inch?: string | null; width?: number | null; height?: number | null; colors?: number | null }): string {
+  const inks = d.colors === 4 ? "黑白黄红" : d.colors === 3 ? "黑白红" : "黑白";
+  const size = diagonalOf(d);
+  const res = d.width && d.height ? ` · ${d.width}×${d.height}` : "";
+  return `${size ? `${size}" ` : ""}${inks}${res}`;
+}
+
+/**
+ * How a screen stands. "portrait" is the landscape panel turned a quarter counter-clockwise
+ * (its top edge on the left); the "-flip" ones are those turned half way round. Layouts are
+ * drawn upright at the oriented size (orientedPanel) and turned into the panel's own
+ * orientation for the device (render/orient.ts).
+ */
+export type Orientation = "landscape" | "portrait" | "landscape-flip" | "portrait-flip";
+export const ORIENTATIONS: [Orientation, string][] = [
+  ["landscape", "横向"], ["portrait", "纵向（逆时针转 90°）"],
+  ["landscape-flip", "横向倒置（转 180°）"], ["portrait-flip", "纵向倒置（顺时针转 90°）"],
+];
+export const isOrientation = (v: unknown): v is Orientation => ORIENTATIONS.some(([o]) => o === v);
+export const isPortrait = (o: Orientation | undefined) => o === "portrait" || o === "portrait-flip";
+
+/** The panel as layouts see it in orientation `o`: width and height swapped when upright. */
+export function orientedPanel(panel: Panel, o: Orientation | undefined): Panel {
+  return isPortrait(o) ? { ...panel, width: panel.height, height: panel.width } : panel;
+}
 
 /**
  * Find the panel matching what an InkSight-firmware device reports: same size and the
